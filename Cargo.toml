@@ -1,0 +1,11 @@
+[package]
+name = "rust-backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-cors = "0.7.1"
+actix-web = "4.12.1"
+dotenvy = "0.15.7"
+redis = { version = "1.0.0", features = ["connection-manager", "tokio-comp"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid"] }
