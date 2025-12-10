@@ -1,3 +1,7 @@
+mod cache;
+mod product;
+mod routes;
+
 use std::{
     env::{self, VarError},
     error::Error as StdError,
@@ -5,18 +9,17 @@ use std::{
 };
 
 use actix_cors::Cors;
-use actix_web::{App, HttpResponse, HttpServer, web::Data};
+use actix_web::{App, HttpServer, web::Data};
 use redis::{Client, aio::ConnectionManager};
 use sqlx::PgPool;
 
-#[actix_web::get("/")]
-async fn hello() -> HttpResponse {
-    HttpResponse::Ok().body("Hello there")
-}
+use routes::*;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let _ = dotenvy::dotenv();
+
+    env_logger::init();
 
     let host = "127.0.0.1";
     let port = match env::var("PORT") {
@@ -43,6 +46,9 @@ async fn main() -> Result<(), Box<dyn StdError>> {
             .app_data(Data::new(pg_pool.clone()))
             .app_data(Data::new(Mutex::new(redis_connman.clone())))
             .service(hello)
+            .service(get_products)
+            .service(get_product)
+            .service(post_product)
     })
     .bind((host, port))?
     .run()
