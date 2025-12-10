@@ -217,3 +217,34 @@ async fn patch_product(
         }
     }
 }
+
+#[actix_web::delete("/api/products/{id}")]
+async fn delete_product(
+    uuid: Path<Uuid>,
+    pool: Data<PgPool>,
+    redis: Data<Mutex<ConnectionManager>>,
+) -> impl Responder {
+    let id = uuid.into_inner();
+
+    let response = sqlx::query("DELETE FROM products WHERE id = $1")
+        .bind(id)
+        .execute(pool.get_ref())
+        .await;
+
+    match response {
+        Ok(response) => {
+            if response.rows_affected() == 0 {
+                HttpResponse::NotFound().body("Product was not found")
+            } else {
+                let _ = cache::del("products", &redis).await;
+                let _ = cache::del(&format!("products:{}", id), &redis).await;
+                HttpResponse::NoContent().finish()
+            }
+        }
+        Err(error) => {
+            log::error!("error while removing product: {}", error);
+            HttpResponse::InternalServerError()
+                .body("The server was unable to remove product due to an internal error")
+        }
+    }
+}
