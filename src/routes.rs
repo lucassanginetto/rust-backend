@@ -117,3 +117,33 @@ async fn post_product(
         }
     }
 }
+
+#[actix_web::put("/api/products/{id}")]
+async fn put_product(
+    uuid: Path<Uuid>,
+    payload: Json<CreateProductDTO>,
+    pool: Data<PgPool>,
+    redis: Data<Mutex<ConnectionManager>>,
+) -> impl Responder {
+    let id = uuid.into_inner();
+
+    if payload.price < 0 {
+        return HttpResponse::BadRequest().body("Price can't be negative");
+    }
+
+    let response = sqlx::query_as::<_, Product>("UPDATE products SET name = $1, description = $2, price = $3, updated_at = now() WHERE id = $4 RETURNING *").bind(&payload.name).bind(&payload.description).bind(payload.price).bind(id).fetch_one(pool.get_ref()).await;
+
+    match response {
+        Ok(product) => {
+            let _ = cache::del("products", &redis).await;
+            let _ = cache::del(&format!("products:{}", product.id), &redis).await;
+            HttpResponse::Ok().json(product)
+        }
+        Err(sqlx::Error::RowNotFound) => HttpResponse::NotFound().body("Product was not found"),
+        Err(error) => {
+            log::error!("error while replacing product: {}", error);
+            HttpResponse::InternalServerError()
+                .body("The server was unable to replace product due to an internal error")
+        }
+    }
+}

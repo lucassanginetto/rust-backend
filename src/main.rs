@@ -49,6 +49,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
             .service(get_products)
             .service(get_product)
             .service(post_product)
+            .service(put_product)
     })
     .bind((host, port))?
     .run()
