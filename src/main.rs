@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         r => r?.parse()?,
     };
 
-    let postgres_url = env::var("POSTGRES_URL")?;
+    let postgres_url = env::var("DATABASE_URL")?;
     let pg_pool = PgPool::connect(&postgres_url).await?;
 
     let redis_url = env::var("REDIS_URL")?;
