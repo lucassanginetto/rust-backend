@@ -19,3 +19,10 @@ pub struct CreateProductDTO {
     pub description: String,
     pub price: i32,
 }
+
+#[derive(Deserialize)]
+pub struct UpdateProductDTO {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub price: Option<i32>,
+}

@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     cache::{self, DEFAULT_EXPIRATION as CACHE_EXPIRATION},
-    product::{CreateProductDTO, Product},
+    product::{CreateProductDTO, Product, UpdateProductDTO},
 };
 
 #[actix_web::get("/")]
@@ -144,6 +144,76 @@ async fn put_product(
             log::error!("error while replacing product: {}", error);
             HttpResponse::InternalServerError()
                 .body("The server was unable to replace product due to an internal error")
+        }
+    }
+}
+
+#[actix_web::patch("/api/products/{id}")]
+async fn patch_product(
+    uuid: Path<Uuid>,
+    payload: Json<UpdateProductDTO>,
+    pool: Data<PgPool>,
+    redis: Data<Mutex<ConnectionManager>>,
+) -> impl Responder {
+    let id = uuid.into_inner();
+    let dto = payload.into_inner();
+
+    if let Some(price) = dto.price
+        && price < 0
+    {
+        return HttpResponse::BadRequest().body("Price can't be negative");
+    }
+
+    let existing = sqlx::query_as::<_, Product>("SELECT * FROM products WHERE id = $1")
+        .bind(id)
+        .fetch_one(pool.get_ref())
+        .await;
+
+    let mut product = match existing {
+        Ok(product) => product,
+        Err(sqlx::Error::RowNotFound) => {
+            return HttpResponse::NotFound().body("Product was not found");
+        }
+        Err(error) => {
+            log::error!("error while updating product: {}", error);
+            return HttpResponse::InternalServerError()
+                .body("The server was unable to update product due to an internal error");
+        }
+    };
+
+    if let Some(name) = dto.name {
+        product.name = name;
+    }
+    if let Some(description) = dto.description {
+        product.description = description;
+    }
+    if let Some(price) = dto.price {
+        product.price = price;
+    }
+
+    let response = sqlx::query_as::<_, Product>(
+        "UPDATE products
+        SET name = $1, description = $2, price = $3, updated_at = now()
+        WHERE id = $4
+        RETURNING *",
+    )
+    .bind(&product.name)
+    .bind(&product.description)
+    .bind(product.price)
+    .bind(id)
+    .fetch_one(pool.get_ref())
+    .await;
+
+    match response {
+        Ok(updated) => {
+            let _ = cache::del("products", &redis).await;
+            let _ = cache::del(&format!("products:{}", updated.id), &redis).await;
+            HttpResponse::Ok().json(updated)
+        }
+        Err(error) => {
+            log::error!("error while updating product: {}", error);
+            HttpResponse::InternalServerError()
+                .body("The server was unable to update product due to an internal error")
         }
     }
 }
