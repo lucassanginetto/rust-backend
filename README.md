@@ -1,6 +1,6 @@
 # Rust Backend
 
-A simple CRUD API written in Rust, using the [Actix Web](https://actix.rs/) framework. It connects to a PostgreSQL database (through `sqlx`) for storing it's data, and to a Redis database for caching. Both databases can be run easily using the provided Docker Compose file.
+A simple CRUD API written in Rust, trying to follow Clean Architecture principles. It uses the [Actix Web](https://actix.rs/) framework, and the `sqlx` toolkit for handling connections to the PostgreSQL database.
 
 ## Running
 
@@ -8,7 +8,7 @@ A simple CRUD API written in Rust, using the [Actix Web](https://actix.rs/) fram
 # Create dotenv file using the example
 cp .env.example .env
 
-# Run PostgreSQL and Redis Docker containers
+# Run PostgreSQL Docker container
 docker-compose up -d
 
 # Run migrations
