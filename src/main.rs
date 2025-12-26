@@ -1,19 +1,27 @@
-mod cache;
-mod product;
-mod routes;
+mod application;
+mod domain;
+mod handlers;
+mod repositories;
 
 use std::{
     env::{self, VarError},
     error::Error as StdError,
-    sync::Mutex,
 };
 
 use actix_cors::Cors;
-use actix_web::{App, HttpServer, web::Data};
-use redis::{Client, aio::ConnectionManager};
+use actix_web::{
+    App, HttpServer,
+    web::{self, Data},
+};
 use sqlx::PgPool;
 
-use routes::*;
+use crate::{
+    application::product_service::ProductService,
+    handlers::product_handlers::{
+        add_product, find_product, list_products, put_product, remove_product,
+    },
+    repositories::product_repository::PgProductRepository,
+};
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
@@ -24,15 +32,11 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     let host = "127.0.0.1";
     let port = match env::var("PORT") {
         Err(VarError::NotPresent) => 8080u16,
-        r => r?.parse()?,
+        result => result?.parse()?,
     };
 
     let postgres_url = env::var("DATABASE_URL")?;
     let pg_pool = PgPool::connect(&postgres_url).await?;
-
-    let redis_url = env::var("REDIS_URL")?;
-    let redis_client = Client::open(redis_url)?;
-    let redis_connman = ConnectionManager::new(redis_client).await?;
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -41,17 +45,18 @@ async fn main() -> Result<(), Box<dyn StdError>> {
             .allow_any_header()
             .max_age(3600);
 
-        App::new()
-            .wrap(cors)
-            .app_data(Data::new(pg_pool.clone()))
-            .app_data(Data::new(Mutex::new(redis_connman.clone())))
-            .service(hello)
-            .service(get_products)
-            .service(get_product)
-            .service(post_product)
-            .service(put_product)
-            .service(patch_product)
-            .service(delete_product)
+        type Repo = PgProductRepository;
+        let repo = Repo::new(pg_pool.clone());
+        let service = ProductService::new(repo);
+
+        App::new().wrap(cors).app_data(Data::new(service)).service(
+            web::scope("/api/products")
+                .route("", web::get().to(list_products::<Repo>))
+                .route("", web::post().to(add_product::<Repo>))
+                .route("/{id}", web::get().to(find_product::<Repo>))
+                .route("/{id}", web::put().to(put_product::<Repo>))
+                .route("/{id}", web::delete().to(remove_product::<Repo>)),
+        )
     })
     .bind((host, port))?
     .run()
