@@ -7,26 +7,29 @@ use crate::domain::product::Product;
 pub trait ProductRepository {
     type Error: Error;
 
-    async fn create(
+    fn create(
         &self,
         name: String,
         description: String,
         price: u32,
-    ) -> Result<Product, Self::Error>;
+    ) -> impl Future<Output = Result<Product, Self::Error>> + Send;
 
-    async fn read_all(&self) -> Result<Vec<Product>, Self::Error>;
+    fn read_all(&self) -> impl Future<Output = Result<Vec<Product>, Self::Error>> + Send;
 
-    async fn read_one(&self, id: Uuid) -> Result<Option<Product>, Self::Error>;
+    fn read_one(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Option<Product>, Self::Error>> + Send;
 
-    async fn update(
+    fn update(
         &self,
         id: Uuid,
         name: String,
         description: String,
         price: u32,
-    ) -> Result<Option<Product>, Self::Error>;
+    ) -> impl Future<Output = Result<Option<Product>, Self::Error>> + Send;
 
-    async fn delete(&self, id: Uuid) -> Result<bool, Self::Error>;
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<bool, Self::Error>> + Send;
 }
 
 pub enum ProductServiceError<E> {
