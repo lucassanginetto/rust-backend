@@ -1,8 +1,3 @@
-mod application;
-mod domain;
-mod handlers;
-mod repositories;
-
 use std::{
     env::{self, VarError},
     error::Error as StdError,
@@ -15,7 +10,7 @@ use actix_web::{
 };
 use sqlx::PgPool;
 
-use crate::{
+use rust_backend::{
     application::product_service::ProductService,
     handlers::product_handlers::{
         add_product, find_product, list_products, put_product, remove_product,
