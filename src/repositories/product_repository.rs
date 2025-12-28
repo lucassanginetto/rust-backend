@@ -10,7 +10,9 @@ struct PgProductModel {
     name: String,
     description: String,
     price: i32,
+    #[allow(dead_code)]
     created_at: DateTime<Utc>,
+    #[allow(dead_code)]
     updated_at: DateTime<Utc>,
 }
 impl From<PgProductModel> for Product {
